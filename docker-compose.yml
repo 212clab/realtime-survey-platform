@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  # 사용자 서비스
+  user-service:
+    build: ./user-service # ./user-service 폴더의 Dockerfile을 사용해 이미지를 빌드
+    ports:
+      - "8081:8080" # 로컬 8081 포트와 컨테이너 8080 포트를 연결
+    depends_on:
+      - db # db 서비스가 시작된 후에 실행
+    environment:
+      - DB_SOURCE=postgresql://myuser:mypassword@db:5432/survey_db?sslmode=disable
+
+  # 설문조사 서비스
+  survey-service:
+    build: ./survey-service # ./survey-service 폴더의 Dockerfile을 사용해 이미지를 빌드
+    ports:
+      - "8082:8080" # 로컬 8082 포트와 컨테이너 8080 포트를 연결
+    depends_on:
+      - db # db 서비스가 시작된 후에 실행
+    environment:
+      - DB_SOURCE=postgresql://myuser:mypassword@db:5432/survey_db?sslmode=disable
+
+  # PostgreSQL 데이터베이스
+  db:
+    image: postgres:13 # 공식 PostgreSQL 13 이미지를 사용
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: survey_db
+    ports:
+      - "5432:5432" # 로컬과 컨테이너의 5432 포트를 연결
+    volumes:
+      - pgdata:/var/lib/postgresql/data # 데이터 영속성을 위해 볼륨 사용
+
+volumes:
+  pgdata:
