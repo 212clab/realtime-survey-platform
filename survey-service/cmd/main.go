@@ -35,7 +35,7 @@ func main() {
 	store := storage.NewStore(db)
 	api := api.NewAPI(store)
 
-	http.HandleFunc("/surveys", api.CreateSurveyHandler)
+	http.HandleFunc("/surveys", api.SurveysHandler)
 	http.HandleFunc("/health", api.HealthCheckHandler)
 
 	fmt.Println("✅ Survey service is running on port 8080")

@@ -1,19 +1,33 @@
 import Link from "next/link";
 
-// Survey 데이터의 타입을 정의합니다.
 interface Survey {
   id: number;
   title: string;
 }
 
-// 임시 데이터 배열에 Survey[] 타입을 적용합니다.
-const dummySurveys: Survey[] = [
-  { id: 1, title: "가장 좋아하는 개발 언어는?" },
-  { id: 2, title: "점심 메뉴로 뭐가 좋을까요?" },
-  { id: 3, title: "DevOps 공부, 가장 어려운 점은?" },
-];
+// 서버 컴포넌트에서 직접 백엔드 API를 호출하는 함수
+async function getSurveys(): Promise<Survey[]> {
+  try {
+    // 서버 컴포넌트는 Docker 내부 네트워크에 있으므로, 서비스 이름으로 직접 호출
+    const res = await fetch("http://survey-service:8080/surveys", {
+      cache: "no-store", // 항상 최신 데이터를 가져오기 위해 캐시 비활성화
+    });
 
-export default function HomePage() {
+    if (!res.ok) {
+      throw new Error("Failed to fetch surveys");
+    }
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching surveys:", error);
+    return []; // 에러 발생 시 빈 배열 반환
+  }
+}
+
+// 페이지 컴포넌트를 async 함수로 변경
+export default async function HomePage() {
+  // 페이지 렌더링 전에 서버에서 데이터를 미리 가져옵니다.
+  const surveys = await getSurveys();
+
   return (
     <main style={{ fontFamily: "sans-serif", padding: "2rem" }}>
       <header
@@ -49,25 +63,31 @@ export default function HomePage() {
           진행중인 설문조사
         </h2>
         <ul style={{ listStyle: "none", padding: 0 }}>
-          {dummySurveys.map((survey) => (
-            <Link
-              key={survey.id}
-              href={`/surveys/${survey.id}`}
-              style={{ textDecoration: "none", color: "inherit" }}
-            >
-              <li
-                style={{
-                  padding: "1rem",
-                  border: "1px solid #ddd",
-                  borderRadius: "8px",
-                  marginTop: "1rem",
-                  cursor: "pointer",
-                }}
+          {surveys.length > 0 ? (
+            surveys.map((survey) => (
+              <Link
+                key={survey.id}
+                href={`/surveys/${survey.id}`}
+                style={{ textDecoration: "none", color: "inherit" }}
               >
-                {survey.title}
-              </li>
-            </Link>
-          ))}
+                <li
+                  style={{
+                    padding: "1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    marginTop: "1rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {survey.title}
+                </li>
+              </Link>
+            ))
+          ) : (
+            <p style={{ marginTop: "1rem", color: "#888" }}>
+              생성된 설문조사가 없습니다. 첫 설문을 만들어보세요!
+            </p>
+          )}
         </ul>
       </section>
     </main>

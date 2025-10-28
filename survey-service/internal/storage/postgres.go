@@ -31,3 +31,29 @@ func (s *Store) CreateSurvey(survey *models.Survey) (int, error) {
 
 	return surveyID, nil
 }
+
+// GetAllSurveys는 모든 설문조사 목록을 데이터베이스에서 가져옵니다.
+func (s *Store) GetAllSurveys() ([]models.Survey, error) {
+	rows, err := s.DB.Query("SELECT id, title, options FROM surveys ORDER BY id DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var surveys []models.Survey
+	for rows.Next() {
+		var survey models.Survey
+		var optionsJSON []byte // options를 JSON byte 슬라이스로 받음
+
+		if err := rows.Scan(&survey.ID, &survey.Title, &optionsJSON); err != nil {
+			return nil, err
+		}
+
+		// JSON byte 슬라이스를 models.Option 슬라이스로 변환
+		if err := json.Unmarshal(optionsJSON, &survey.Options); err != nil {
+			return nil, err
+		}
+		surveys = append(surveys, survey)
+	}
+	return surveys, nil
+}
