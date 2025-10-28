@@ -116,29 +116,25 @@ type GitHubUserResponse struct {
 }
 
 
-// GithubLoginHandler는 GitHub OAuth 콜백을 처리합니다.
+// GithubLoginHandler는 GitHub OAuth 콜백을 처리합니다. (완성된 버전)
 func (a *API) GithubLoginHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. 프론트엔드로부터 임시 허가증(code)을 받습니다.
 	code := r.URL.Query().Get("code")
 	if code == "" {
 		http.Error(w, "Code is missing", http.StatusBadRequest)
 		return
 	}
 
-	// 2. 허가증을 Access Token으로 교환합니다.
+	// 1. 허가증을 Access Token으로 교환합니다.
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
-
 	reqBody, _ := json.Marshal(map[string]string{
 		"client_id":     clientID,
 		"client_secret": clientSecret,
 		"code":          code,
 	})
-	
 	req, _ := http.NewRequest("POST", "https://github.com/login/oauth/access_token", bytes.NewBuffer(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
@@ -146,33 +142,115 @@ func (a *API) GithubLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-
 	var tokenResp GitHubAccessTokenResponse
 	json.NewDecoder(resp.Body).Decode(&tokenResp)
 
-	// 3. Access Token으로 사용자 정보를 가져옵니다.
+	// 2. Access Token으로 사용자 정보를 가져옵니다.
 	userReq, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
 	userReq.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
-	
 	userResp, err := client.Do(userReq)
 	if err != nil || userResp.StatusCode != http.StatusOK {
 		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
 		return
 	}
 	defer userResp.Body.Close()
-
-	var githubUser GitHubUserResponse
+	var githubUser models.GitHubUserResponse
 	json.NewDecoder(userResp.Body).Decode(&githubUser)
 
-	// 4. 받아온 사용자 정보로 우리 DB에 사용자를 생성하거나 찾습니다.
-	//    (이 부분은 storage 계층에 새로운 함수를 만들어 처리해야 합니다.)
-	//    예: user, err := a.Store.FindOrCreateUserByGithub(githubUser)
-	//    ...
+	// 3. 받아온 사용자 정보로 우리 DB에 사용자를 생성하거나 찾습니다.
+	userID, err := a.Store.FindOrCreateUserByGithub(&githubUser)
+	if err != nil {
+		http.Error(w, "Failed to process user data", http.StatusInternalServerError)
+		return
+	}
 
-	// 5. 우리 서비스의 JWT를 발급합니다.
-	//    (기존 LoginHandler의 JWT 생성 로직을 재사용)
-	//    ...
+	// 4. 우리 서비스의 JWT를 발급합니다.
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &jwt.RegisteredClaims{
+		Subject:   fmt.Sprintf("%d", userID),
+		ExpiresAt: jwt.NewNumericDate(expirationTime),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtKey)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
 
-	// 6. 최종적으로 JWT를 프론트엔드에 전달합니다.
-	w.Write([]byte("GitHub Login Success! (JWT 발급 로직 추가 필요)"))
+	// 5. 최종적으로 JWT를 JSON 형식에 담아 프론트엔드에 전달합니다.
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+}
+
+// GoogleLoginHandler는 Google OAuth 콜백을 처리합니다.
+func (a *API) GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "Code is missing", http.StatusBadRequest)
+		return
+	}
+
+	// 1. 코드를 Access Token으로 교환
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	redirectURI := "http://localhost:3000/api/auth/callback/google"
+
+	tokenURL := "https://oauth2.googleapis.com/token"
+	reqBody, _ := json.Marshal(map[string]string{
+		"code":          code,
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+		"redirect_uri":  redirectURI,
+		"grant_type":    "authorization_code",
+	})
+
+	resp, err := http.Post(tokenURL, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		http.Error(w, "Failed to get google access token", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	var tokenData map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&tokenData)
+	accessToken := tokenData["access_token"].(string)
+
+	// 2. Access Token으로 사용자 정보 가져오기
+	userInfoURL := "https://www.googleapis.com/oauth2/v2/userinfo"
+	req, _ := http.NewRequest("GET", userInfoURL, nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	client := &http.Client{}
+	userResp, err := client.Do(req)
+	if err != nil || userResp.StatusCode != http.StatusOK {
+		http.Error(w, "Failed to get google user info", http.StatusInternalServerError)
+		return
+	}
+	defer userResp.Body.Close()
+	
+	var googleUser models.GoogleUserResponse
+	json.NewDecoder(userResp.Body).Decode(&googleUser)
+
+	// 3. DB 처리 및 JWT 발급
+	userID, err := a.Store.FindOrCreateUserByGoogle(&googleUser)
+	if err != nil {
+		http.Error(w, "Failed to process google user data", http.StatusInternalServerError)
+		return
+	}
+
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &jwt.RegisteredClaims{
+		Subject:   fmt.Sprintf("%d", userID),
+		ExpiresAt: jwt.NewNumericDate(expirationTime),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtKey)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 }

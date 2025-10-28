@@ -21,15 +21,18 @@ export default function HomePage() {
         const res = await fetch("/api/surveys/list");
         if (!res.ok) throw new Error("Failed to fetch surveys");
         const data = await res.json();
-        setSurveys(data);
+        // 👇 data가 null이나 undefined일 경우, 빈 배열로 안전하게 대체합니다.
+        setSurveys(data || []);
       } catch (error) {
         console.error("Error fetching surveys:", error);
+        setSurveys([]); // 에러 발생 시에도 빈 배열로 설정
       }
     }
     getSurveys();
   }, []);
 
   const handleRegisterClick = () => {
+    console.log(token);
     if (token) {
       // 로그인 상태이면 설문 생성 페이지로 이동
       router.push("/surveys/new");

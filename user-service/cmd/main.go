@@ -33,6 +33,7 @@ func main() {
         username TEXT UNIQUE,
         password TEXT,
         github_id BIGINT UNIQUE,
+		google_id TEXT UNIQUE,
         email TEXT
     );`
 	if _, err := db.Exec(createTableSQL); err != nil {
@@ -47,6 +48,7 @@ func main() {
 	http.HandleFunc("/signup", api.SignupHandler)
 	http.HandleFunc("/login", api.LoginHandler)
 	http.HandleFunc("/auth/github/callback", api.GithubLoginHandler)
+	http.HandleFunc("/auth/google/callback", api.GoogleLoginHandler)
 	http.HandleFunc("/health", api.HealthCheckHandler)
 
 	// 5. 서버 시작

@@ -40,16 +40,19 @@ func (s *Store) GetAllSurveys() ([]models.Survey, error) {
 	}
 	defer rows.Close()
 
-	var surveys []models.Survey
+	// 👇 이 부분을 수정하세요!
+	// var surveys []models.Survey // nil 슬라이스를 만듭니다.
+	surveys := make([]models.Survey, 0) // 비어있는, nil이 아닌 슬라이스를 만듭니다.
+	// 👆 이렇게 하면 결과가 없어도 JSON으로 `[]`가 됩니다.
+
 	for rows.Next() {
 		var survey models.Survey
-		var optionsJSON []byte // options를 JSON byte 슬라이스로 받음
+		var optionsJSON []byte
 
 		if err := rows.Scan(&survey.ID, &survey.Title, &optionsJSON); err != nil {
 			return nil, err
 		}
 
-		// JSON byte 슬라이스를 models.Option 슬라이스로 변환
 		if err := json.Unmarshal(optionsJSON, &survey.Options); err != nil {
 			return nil, err
 		}

@@ -17,7 +17,17 @@ export async function POST(request: Request) {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+
+    // 👇 여기서부터 수정: JSON을 반환하는 대신 쿠키를 설정합니다.
+    const response = NextResponse.json({ success: true });
+    response.cookies.set("auth_token", data.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== "development",
+      path: "/",
+      maxAge: 60 * 60 * 24, // 1 day
+    });
+    return response;
+    // 👆 여기까지 수정
   } catch (error) {
     return NextResponse.json(
       { message: "Internal Server Error" },
