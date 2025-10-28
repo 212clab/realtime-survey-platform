@@ -1,6 +1,13 @@
 version: "3.8"
 
 services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000" # 맥북 3000번 포트 -> 컨테이너 3000번 포트
+    depends_on:
+      - user-service
+      - survey-service
   # 사용자 서비스
   user-service:
     build: ./user-service # ./user-service 폴더의 Dockerfile을 사용해 이미지를 빌드
