@@ -1,36 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import Link from "next/link";
-
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const { login } = useAuth();
-  const router = useRouter();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/login", {
-        // Next.js 서버를 통해 로그인 요청
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        login(data.token); // 성공 시 AuthContext에 토큰 저장
-        router.push("/"); // 홈으로 이동
-      } else {
-        alert("로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.");
-      }
-    } catch (error) {
-      alert("로그인 중 오류가 발생했습니다.");
-    }
+  const handleSocialLogin = (provider: "github" | "google") => {
+    // 소셜 로그인 시작 API로 리디렉션
+    window.location.href = `/api/auth/login/${provider}`;
   };
 
   return (
@@ -40,11 +13,16 @@ export default function LoginPage() {
         padding: "2rem",
         maxWidth: "400px",
         margin: "100px auto",
+        textAlign: "center",
       }}
     >
-      <h1 style={{ textAlign: "center" }}>로그인</h1>
-      <form
-        onSubmit={handleSubmit}
+      <h1>로그인</h1>
+      <p style={{ color: "#888", marginTop: "1rem" }}>
+        설문조사를 만들려면 로그인이 필요해요. <br />
+        소셜 계정으로 간편하게 시작하세요!
+      </p>
+
+      <div
         style={{
           marginTop: "2rem",
           display: "flex",
@@ -52,51 +30,38 @@ export default function LoginPage() {
           gap: "1rem",
         }}
       >
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Username"
-          required
-          style={{
-            padding: "0.75rem",
-            borderRadius: "8px",
-            border: "1px solid #ddd",
-          }}
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          required
-          style={{
-            padding: "0.75rem",
-            borderRadius: "8px",
-            border: "1px solid #ddd",
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            cursor: "pointer",
-            background: "#0070f3",
-            color: "white",
-            padding: "0.75rem",
-            borderRadius: "8px",
-            border: "none",
-            fontSize: "1rem",
-          }}
-        >
-          로그인
+        <button onClick={() => handleSocialLogin("github")} style={buttonStyle}>
+          <img
+            src="/icons/github-mark.svg"
+            width={24}
+            height={24}
+            alt="github"
+          />
+          GitHub 계정으로 로그인
         </button>
-      </form>
-      <p style={{ textAlign: "center", marginTop: "1rem" }}>
-        계정이 없으신가요?{" "}
-        <Link href="/signup" style={{ color: "#0070f3" }}>
-          회원가입
-        </Link>
-      </p>
+        <button onClick={() => handleSocialLogin("google")} style={buttonStyle}>
+          <img
+            src="/icons/googlechrome.svg"
+            width={24}
+            height={24}
+            alt="google"
+          />
+          Google 계정으로 로그인
+        </button>
+      </div>
     </main>
   );
 }
+
+const buttonStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.5rem",
+  cursor: "pointer",
+  padding: "0.75rem",
+  borderRadius: "8px",
+  border: "1px solid #ddd",
+  fontSize: "1rem",
+  background: "white",
+};

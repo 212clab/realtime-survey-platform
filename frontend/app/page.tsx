@@ -1,8 +1,9 @@
-"use client"; // 👈 클라이언트 컴포넌트로 전환
+"use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react"; // 👈 useEffect, useState import
-import { useAuth } from "@/contexts/AuthContext"; // 👈 useAuth import
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation"; // useRouter import
 
 interface Survey {
   id: number;
@@ -10,15 +11,14 @@ interface Survey {
 }
 
 export default function HomePage() {
-  const { token, logout, isLoading } = useAuth(); // 👈 AuthContext에서 정보 가져오기
+  const { token, logout, isLoading } = useAuth();
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const router = useRouter(); // useRouter 훅 사용
 
-  // 클라이언트 사이드에서 API를 호출하도록 변경
   useEffect(() => {
     async function getSurveys() {
       try {
-        // Next.js 서버의 대리인(Route Handler)을 통해 API 호출
-        const res = await fetch("/api/surveys/list"); // 새로운 Route Handler 경로
+        const res = await fetch("/api/surveys/list");
         if (!res.ok) throw new Error("Failed to fetch surveys");
         const data = await res.json();
         setSurveys(data);
@@ -28,6 +28,17 @@ export default function HomePage() {
     }
     getSurveys();
   }, []);
+
+  const handleRegisterClick = () => {
+    if (token) {
+      // 로그인 상태이면 설문 생성 페이지로 이동
+      router.push("/surveys/new");
+    } else {
+      // 로그아웃 상태이면 로그인 페이지로 이동
+      alert("설문조사를 등록하려면 로그인이 필요합니다.");
+      router.push("/login");
+    }
+  };
 
   return (
     <main style={{ fontFamily: "sans-serif", padding: "2rem" }}>
@@ -40,28 +51,22 @@ export default function HomePage() {
       >
         <h1 style={{ fontSize: "2rem" }}>📝 실시간 설문조사</h1>
         <div>
-          {!isLoading && // 로딩이 끝난 후에 버튼을 보여줌
-            (token ? (
-              <>
-                <Link href="/surveys/new" style={buttonStyle}>
-                  + 새 설문 만들기
-                </Link>
-                <button
-                  onClick={logout}
-                  style={{
-                    ...buttonStyle,
-                    marginLeft: "1rem",
-                    background: "#dc3545",
-                  }}
-                >
-                  로그아웃
-                </button>
-              </>
-            ) : (
-              <Link href="/login" style={buttonStyle}>
-                로그인 / 회원가입
-              </Link>
-            ))}
+          <button onClick={handleRegisterClick} style={buttonStyle}>
+            설문조사 등록
+          </button>
+          {/* 로그인 상태일 때만 로그아웃 버튼 표시 */}
+          {!isLoading && token && (
+            <button
+              onClick={logout}
+              style={{
+                ...buttonStyle,
+                marginLeft: "1rem",
+                background: "gray",
+              }}
+            >
+              로그아웃
+            </button>
+          )}
         </div>
       </header>
 
@@ -107,7 +112,7 @@ export default function HomePage() {
   );
 }
 
-// 버튼 스타일 재사용을 위해 변수로 추출
+// 버튼 스타일 재사용
 const buttonStyle: React.CSSProperties = {
   textDecoration: "none",
   background: "#0070f3",
@@ -116,4 +121,5 @@ const buttonStyle: React.CSSProperties = {
   borderRadius: "8px",
   border: "none",
   cursor: "pointer",
+  fontSize: "1rem",
 };

@@ -5,6 +5,9 @@ services:
     build: ./frontend
     ports:
       - "3000:3000" # 맥북 3000번 포트 -> 컨테이너 3000번 포트
+    environment:
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     depends_on:
       - user-service
       - survey-service
@@ -18,6 +21,10 @@ services:
         condition: service_healthy
     environment:
       - DB_SOURCE=postgresql://myuser:mypassword@db:5432/survey_db?sslmode=disable
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
 
   # 설문조사 서비스
   survey-service:

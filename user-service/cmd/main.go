@@ -27,7 +27,14 @@ func main() {
 	fmt.Println("✅ Successfully connected to the database!")
 
 	// 2. 테이블 생성 (DB 초기화)
-	createTableSQL := `CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL);`
+	createTableSQL := `
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE,
+        password TEXT,
+        github_id BIGINT UNIQUE,
+        email TEXT
+    );`
 	if _, err := db.Exec(createTableSQL); err != nil {
 		log.Fatalf("Failed to create users table: %v", err)
 	}
@@ -39,6 +46,7 @@ func main() {
 	// 4. 라우터 설정
 	http.HandleFunc("/signup", api.SignupHandler)
 	http.HandleFunc("/login", api.LoginHandler)
+	http.HandleFunc("/auth/github/callback", api.GithubLoginHandler)
 	http.HandleFunc("/health", api.HealthCheckHandler)
 
 	// 5. 서버 시작

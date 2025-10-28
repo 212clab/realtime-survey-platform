@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time" // time 패키지 import
 	"user-service/internal/models"
 	"user-service/internal/storage"
@@ -66,16 +68,19 @@ func (a *API) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
+	if creds.Username == nil || creds.Password == nil {
+		http.Error(w, "Username and password are required", http.StatusBadRequest)
+		return
+	}
 	// 1. DB에서 사용자 정보 가져오기
-	user, err := a.Store.GetUserByUsername(creds.Username)
+	user, err := a.Store.GetUserByUsername(*creds.Username) // 👈 creds.Username -> *creds.Username
 	if err != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
 	// 2. 입력된 비밀번호와 DB의 해시값 비교
-	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(creds.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(*creds.Password)); err != nil { // 👈 creds.Password -> *creds.Password
 		// 비밀번호 불일치
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
@@ -98,4 +103,76 @@ func (a *API) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+}
+
+type GitHubAccessTokenResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
+type GitHubUserResponse struct {
+	ID    int64  `json:"id"`
+	Login string `json:"login"`
+	Email string `json:"email"`
+}
+
+
+// GithubLoginHandler는 GitHub OAuth 콜백을 처리합니다.
+func (a *API) GithubLoginHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. 프론트엔드로부터 임시 허가증(code)을 받습니다.
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "Code is missing", http.StatusBadRequest)
+		return
+	}
+
+	// 2. 허가증을 Access Token으로 교환합니다.
+	clientID := os.Getenv("GITHUB_CLIENT_ID")
+	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+
+	reqBody, _ := json.Marshal(map[string]string{
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+		"code":          code,
+	})
+	
+	req, _ := http.NewRequest("POST", "https://github.com/login/oauth/access_token", bytes.NewBuffer(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		http.Error(w, "Failed to get access token", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	var tokenResp GitHubAccessTokenResponse
+	json.NewDecoder(resp.Body).Decode(&tokenResp)
+
+	// 3. Access Token으로 사용자 정보를 가져옵니다.
+	userReq, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
+	userReq.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
+	
+	userResp, err := client.Do(userReq)
+	if err != nil || userResp.StatusCode != http.StatusOK {
+		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+		return
+	}
+	defer userResp.Body.Close()
+
+	var githubUser GitHubUserResponse
+	json.NewDecoder(userResp.Body).Decode(&githubUser)
+
+	// 4. 받아온 사용자 정보로 우리 DB에 사용자를 생성하거나 찾습니다.
+	//    (이 부분은 storage 계층에 새로운 함수를 만들어 처리해야 합니다.)
+	//    예: user, err := a.Store.FindOrCreateUserByGithub(githubUser)
+	//    ...
+
+	// 5. 우리 서비스의 JWT를 발급합니다.
+	//    (기존 LoginHandler의 JWT 생성 로직을 재사용)
+	//    ...
+
+	// 6. 최종적으로 JWT를 프론트엔드에 전달합니다.
+	w.Write([]byte("GitHub Login Success! (JWT 발급 로직 추가 필요)"))
 }
