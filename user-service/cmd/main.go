@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"user-service/internal/api"      // api 패키지 import
-	"user-service/internal/storage"  // storage 패키지 import
+	"user-service/internal/api"     // api 패키지 import
+	"user-service/internal/storage" // storage 패키지 import
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -38,6 +38,7 @@ func main() {
 
 	// 4. 라우터 설정
 	http.HandleFunc("/signup", api.SignupHandler)
+	http.HandleFunc("/login", api.LoginHandler)
 	http.HandleFunc("/health", api.HealthCheckHandler)
 
 	// 5. 서버 시작
