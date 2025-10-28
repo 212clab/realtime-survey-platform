@@ -1,32 +1,33 @@
+"use client"; // 👈 클라이언트 컴포넌트로 전환
+
 import Link from "next/link";
+import { useEffect, useState } from "react"; // 👈 useEffect, useState import
+import { useAuth } from "@/contexts/AuthContext"; // 👈 useAuth import
 
 interface Survey {
   id: number;
   title: string;
 }
 
-// 서버 컴포넌트에서 직접 백엔드 API를 호출하는 함수
-async function getSurveys(): Promise<Survey[]> {
-  try {
-    // 서버 컴포넌트는 Docker 내부 네트워크에 있으므로, 서비스 이름으로 직접 호출
-    const res = await fetch("http://survey-service:8080/surveys", {
-      cache: "no-store", // 항상 최신 데이터를 가져오기 위해 캐시 비활성화
-    });
+export default function HomePage() {
+  const { token, logout, isLoading } = useAuth(); // 👈 AuthContext에서 정보 가져오기
+  const [surveys, setSurveys] = useState<Survey[]>([]);
 
-    if (!res.ok) {
-      throw new Error("Failed to fetch surveys");
+  // 클라이언트 사이드에서 API를 호출하도록 변경
+  useEffect(() => {
+    async function getSurveys() {
+      try {
+        // Next.js 서버의 대리인(Route Handler)을 통해 API 호출
+        const res = await fetch("/api/surveys/list"); // 새로운 Route Handler 경로
+        if (!res.ok) throw new Error("Failed to fetch surveys");
+        const data = await res.json();
+        setSurveys(data);
+      } catch (error) {
+        console.error("Error fetching surveys:", error);
+      }
     }
-    return res.json();
-  } catch (error) {
-    console.error("Error fetching surveys:", error);
-    return []; // 에러 발생 시 빈 배열 반환
-  }
-}
-
-// 페이지 컴포넌트를 async 함수로 변경
-export default async function HomePage() {
-  // 페이지 렌더링 전에 서버에서 데이터를 미리 가져옵니다.
-  const surveys = await getSurveys();
+    getSurveys();
+  }, []);
 
   return (
     <main style={{ fontFamily: "sans-serif", padding: "2rem" }}>
@@ -38,18 +39,30 @@ export default async function HomePage() {
         }}
       >
         <h1 style={{ fontSize: "2rem" }}>📝 실시간 설문조사</h1>
-        <Link
-          href="/surveys/new"
-          style={{
-            textDecoration: "none",
-            background: "#0070f3",
-            color: "white",
-            padding: "0.75rem 1.5rem",
-            borderRadius: "8px",
-          }}
-        >
-          + 새 설문 만들기
-        </Link>
+        <div>
+          {!isLoading && // 로딩이 끝난 후에 버튼을 보여줌
+            (token ? (
+              <>
+                <Link href="/surveys/new" style={buttonStyle}>
+                  + 새 설문 만들기
+                </Link>
+                <button
+                  onClick={logout}
+                  style={{
+                    ...buttonStyle,
+                    marginLeft: "1rem",
+                    background: "#dc3545",
+                  }}
+                >
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <Link href="/login" style={buttonStyle}>
+                로그인 / 회원가입
+              </Link>
+            ))}
+        </div>
       </header>
 
       <section style={{ marginTop: "2rem" }}>
@@ -93,3 +106,14 @@ export default async function HomePage() {
     </main>
   );
 }
+
+// 버튼 스타일 재사용을 위해 변수로 추출
+const buttonStyle: React.CSSProperties = {
+  textDecoration: "none",
+  background: "#0070f3",
+  color: "white",
+  padding: "0.75rem 1.5rem",
+  borderRadius: "8px",
+  border: "none",
+  cursor: "pointer",
+};
