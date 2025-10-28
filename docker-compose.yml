@@ -14,7 +14,8 @@ services:
     ports:
       - "8081:8080" # 로컬 8081 포트와 컨테이너 8080 포트를 연결
     depends_on:
-      - db # db 서비스가 시작된 후에 실행
+      db: # db 서비스가 시작된 후에 실행
+        condition: service_healthy
     environment:
       - DB_SOURCE=postgresql://myuser:mypassword@db:5432/survey_db?sslmode=disable
 
@@ -24,7 +25,8 @@ services:
     ports:
       - "8082:8080" # 로컬 8082 포트와 컨테이너 8080 포트를 연결
     depends_on:
-      - db # db 서비스가 시작된 후에 실행
+      db: # db 서비스가 시작된 후에 실행
+        condition: service_healthy
     environment:
       - DB_SOURCE=postgresql://myuser:mypassword@db:5432/survey_db?sslmode=disable
 
@@ -39,6 +41,11 @@ services:
       - "5432:5432" # 로컬과 컨테이너의 5432 포트를 연결
     volumes:
       - pgdata:/var/lib/postgresql/data # 데이터 영속성을 위해 볼륨 사용
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d survey_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
