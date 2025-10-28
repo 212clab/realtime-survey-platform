@@ -10,7 +10,7 @@ RUN go mod download
 
 # 소스 코드 복사 및 빌드
 COPY . .
-RUN go build -o /main .
+RUN go build -o /main ./cmd
 
 # 2단계: 최종 실행 스테이지
 FROM alpine:latest
