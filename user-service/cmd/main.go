@@ -32,7 +32,6 @@ func main() {
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE,
         password TEXT,
-        github_id BIGINT UNIQUE,
 		google_id TEXT UNIQUE,
         email TEXT
     );`
@@ -47,7 +46,6 @@ func main() {
 	// 4. 라우터 설정
 	http.HandleFunc("/signup", api.SignupHandler)
 	http.HandleFunc("/login", api.LoginHandler)
-	http.HandleFunc("/auth/github/callback", api.GithubLoginHandler)
 	http.HandleFunc("/auth/google/callback", api.GoogleLoginHandler)
 	http.HandleFunc("/health", api.HealthCheckHandler)
 

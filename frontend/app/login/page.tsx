@@ -1,7 +1,7 @@
 "use client";
 
 export default function LoginPage() {
-  const handleSocialLogin = (provider: "github" | "google") => {
+  const handleSocialLogin = (provider: "google") => {
     // 소셜 로그인 시작 API로 리디렉션
     window.location.href = `/api/auth/login/${provider}`;
   };
@@ -30,15 +30,6 @@ export default function LoginPage() {
           gap: "1rem",
         }}
       >
-        <button onClick={() => handleSocialLogin("github")} style={buttonStyle}>
-          <img
-            src="/icons/github-mark.svg"
-            width={24}
-            height={24}
-            alt="github"
-          />
-          GitHub 계정으로 로그인
-        </button>
         <button onClick={() => handleSocialLogin("google")} style={buttonStyle}>
           <img
             src="/icons/googlechrome.svg"

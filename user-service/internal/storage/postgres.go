@@ -74,26 +74,6 @@ func (s *Store) GetUserByUsername(username string) (*UserForLogin, error) {
 }
 
 
-// FindOrCreateUserByGithub는 github ID로 사용자를 찾거나 새로 생성합니다.
-func (s *Store) FindOrCreateUserByGithub(githubUser *models.GitHubUserResponse) (int, error) {
-	var userID int
-	sqlFind := `SELECT id FROM users WHERE github_id = $1`
-	err := s.DB.QueryRow(sqlFind, githubUser.ID).Scan(&userID)
-
-	if err == sql.ErrNoRows {
-		// pgx 드라이버는 *string 타입의 nil 값을 DB의 NULL로 잘 처리해줍니다.
-		sqlCreate := `INSERT INTO users (username, github_id, email) VALUES ($1, $2, $3) RETURNING id`
-		err = s.DB.QueryRow(sqlCreate, githubUser.Login, githubUser.ID, githubUser.Email).Scan(&userID)
-		if err != nil {
-			return 0, err
-		}
-		return userID, nil
-	} else if err != nil {
-		return 0, err
-	}
-
-	return userID, nil
-}
 
 // FindOrCreateUserByGoogle은 google ID로 사용자를 찾거나 새로 생성합니다.
 func (s *Store) FindOrCreateUserByGoogle(googleUser *models.GoogleUserResponse) (int, error) {

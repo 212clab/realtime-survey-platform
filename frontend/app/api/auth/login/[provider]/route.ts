@@ -13,21 +13,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (provider === "github") {
-    const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
-    if (!GITHUB_CLIENT_ID) {
-      console.error("GITHUB_CLIENT_ID is not set in the environment.");
-      return NextResponse.json(
-        { message: "Server configuration error" },
-        { status: 500 }
-      );
-    }
-    const GITHUB_SCOPE = "read:user user:email";
-    return NextResponse.redirect(
-      `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=${GITHUB_SCOPE}`
-    );
-  }
-
   if (provider === "google") {
     const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
     if (!GOOGLE_CLIENT_ID) {
